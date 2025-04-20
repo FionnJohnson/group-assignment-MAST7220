@@ -92,7 +92,7 @@ tuned_tree$bestTune
 plot(tuned_tree)
 install.packages("randomForest")
 library(randomForest)
-set.seed(123)
+set.seed(2)
 rf_model <- randomForest(
   Diabetes_binary ~ ., 
   data = train_data,
