@@ -96,7 +96,7 @@ set.seed(2)
 rf_model <- randomForest(
   Diabetes_binary ~ ., 
   data = train_data,
-  ntree = 70,  # Number of trees
+  ntree = 200,  # Number of trees
   importance = TRUE   # To get variable importance
 )
 # Predict using test data 
@@ -114,10 +114,10 @@ recall
 library(ggplot2)
 
 # Set different numbers of trees to test
-tree_counts <- seq(10, 200, by = 10)
+tree_counts <- seq(100, 1000, by = 50)
 accuracies <- numeric(length(tree_counts))
 
-set.seed(123)
+set.seed(2)
 
 for (i in seq_along(tree_counts)) {
   rf_model <- randomForest(Diabetes_binary ~ ., 
