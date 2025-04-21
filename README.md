@@ -19,6 +19,9 @@ library(gridExtra)  # Plot arrangement
 library(ROCR)       # Visualization tools for model performance
 library(ggplot2)    # Advanced data visualization
 library(pROC)       # ROC curve analysis
+library(class)      # KNN algorithm implementation
+library(dplyr)      # data manipulation
+library(janitor)    # data cleaning
 
 # ensure y value is binary for classification
 data$Diabetes_binary<- as.factor(data$Diabetes_binary)
@@ -358,15 +361,9 @@ cat("Area Under the Curve (AUC):", auc_value, "\n")
 # Plot ROC curve
 plot(roc_obj, main = "ROC Curve for XGBoost Model", col = "blue")
 
-                      # --- K nearest Neighbours --- #
+# --- K nearest Neighbours --- #
 
-# --- imports --- #
-library(class)
-library(dplyr)
-library(caret)
-library(janitor)
-
-# --- loading data --- #
+# cleaning data
 data <-janitor::clean_names(data)
 
 # Converting the response variable into a factor variable
@@ -440,8 +437,7 @@ print(conf_matrix_k50)
 accuracy_k50 <- mean(knn_pred_k50 == test_y)
 cat("Accuracy:", round(accuracy_k50 * 100, 2), "%\n")
 
-# Creating a plot (to find the elbow [best k model])
-
+# Testing different values of K
 accuracy_k <- numeric()
 
 for (k in 1:50) {
