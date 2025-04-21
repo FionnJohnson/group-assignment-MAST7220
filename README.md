@@ -357,3 +357,110 @@ cat("Area Under the Curve (AUC):", auc_value, "\n")
 
 # Plot ROC curve
 plot(roc_obj, main = "ROC Curve for XGBoost Model", col = "blue")
+
+                      # --- K nearest Neighbours --- #
+
+# --- imports --- #
+library(class)
+library(dplyr)
+library(caret)
+library(janitor)
+library()
+
+# --- loading data --- #
+data <- read.csv('diabetes_binary_5050split_health_indicators_BRFSS2015.csv')
+data <-janitor::clean_names(data)
+
+
+# Converting the response variable into a factor variable
+data$diabetes_binary <- factor(data$diabetes_binary, labels = c("No", "Yes"))
+
+predictors <- c("high_bp", "high_chol", "gen_hlth", "age", "phys_activity", 
+                "bmi", "heart_diseaseor_attack")
+
+# Standardize/scale the relevant features
+scaled_data <- scale(data[, predictors])
+
+
+# Create a training and testing split (70-30)
+set.seed(2)
+train_index <- sample(1:nrow(data), size = 0.7 * nrow(data))
+
+train_x <- scaled_data[train_index, ]
+test_x  <- scaled_data[-train_index, ]
+
+train_y <- data$diabetes_binary[train_index]
+test_y <- data$diabetes_binary[-train_index]
+
+
+# Running the K-NN model (with k = 20)
+knn_pred <- knn(train_x, test_x, cl = train_y, k = 30)
+
+
+# Evaluating the performance
+conf_matrix <- table(Predicted = knn_pred, Actual = test_y)
+print(conf_matrix)
+accuracy <- mean(knn_pred == test_y)
+cat("Accuracy:", round(accuracy * 100, 2), "%\n")
+
+# 74.27%
+
+
+# K = 1
+knn_pred_k1 <- knn(train_x, test_x, cl = train_y, k = 1)
+
+conf_matrix_k1 <- table(Predicted = knn_pred_k1, Actual = test_y)
+print(conf_matrix_k1)
+accuracy_k1 <- mean(knn_pred_k1 == test_y)
+cat("Accuracy:", round(accuracy_k1 * 100, 2), "%\n")
+
+# K = 3
+knn_pred_k3 <- knn(train_x, test_x, cl = train_y, k = 3)
+
+conf_matrix_k3 <- table(Predicted = knn_pred_k3, Actual = test_y)
+print(conf_matrix_k3)
+accuracy_k3 <- mean(knn_pred_k3 == test_y)
+cat("Accuracy:", round(accuracy_k3 * 100, 2), "%\n")
+
+# K = 7
+knn_pred_k7 <- knn(train_x, test_x, cl = train_y, k = 7)
+
+conf_matrix_k7 <- table(Predicted = knn_pred_k7, Actual = test_y)
+print(conf_matrix_k7)
+accuracy_k7 <- mean(knn_pred_k7 == test_y)
+cat("Accuracy:", round(accuracy_k7 * 100, 2), "%\n")
+
+# K = 9
+knn_pred_k9 <- knn(train_x, test_x, cl = train_y, k = 9)
+
+conf_matrix_k9 <- table(Predicted = knn_pred_k9, Actual = test_y)
+print(conf_matrix_k9)
+accuracy_k9 <- mean(knn_pred_k9 == test_y)
+cat("Accuracy:", round(accuracy_k9 * 100, 2), "%\n")
+
+# K = 50
+knn_pred_k50 <- knn(train_x, test_x, cl = train_y, k = 50)
+
+conf_matrix_k50 <- table(Predicted = knn_pred_k50, Actual = test_y)
+print(conf_matrix_k50)
+accuracy_k50 <- mean(knn_pred_k50 == test_y)
+cat("Accuracy:", round(accuracy_k50 * 100, 2), "%\n")
+
+# Creating a plot (to find the elbow [best k model])
+
+accuracy_k <- numeric()
+
+for (k in 1:50) {
+  knn_pred <- knn(train_x, test_x, cl = train_y, k = k)
+  acc <- mean(knn_pred == test_y)
+  accuracy_k[k] <- acc
+}
+
+# Plot the elbow graph
+plot(1:50, accuracy_k, type = "b", pch = 19, col = "blue",
+     xlab = "Number of Neighbors (k)",
+     ylab = "Accuracy",
+     main = "Elbow Method for KNN – Accuracy vs. K")
+
+
+
