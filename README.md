@@ -3,11 +3,23 @@ Machine Learning with R - group assignment - Classification problem
 # read in data 
 data <- read.csv("diabetes_binary_5050split_health_indicators_BRFSS2015.csv")
 data
-# install rpart and rpart plot for trees 
-install.packages("rpart")
+
+# Installing necessary libraries for classification and regression models  
+install.packages("rpart") #rpart and rpart plot for trees
 install.packages("rpart.plot")
 library(rpart)
 library(rpart.plot)
+library(tidyverse)  # Data manipulation and visualization
+library(caret)      # Classification and Regression Training
+library(xgboost)    # XGBoost algorithm implementation
+library(Matrix)     # Sparse matrix handling
+library(hnp)        # Half-Normal Plot for diagnostics
+library(broom)      # Tidy model output
+library(gridExtra)  # Plot arrangement
+library(ROCR)       # Visualization tools for model performance
+library(ggplot2)    # Advanced data visualization
+library(pROC)       # ROC curve analysis
+
 # ensure y value is binary for classification
 data$Diabetes_binary<- as.factor(data$Diabetes_binary)
 # tree model for seeing if patient has diabetes
@@ -146,27 +158,19 @@ ggplot(results_df, aes(x = Trees, y = Accuracy)) +
        x = "Number of Trees (ntree)",
        y = "Accuracy")
 
-# Load required packages
-library(tidyverse)    # Data manipulation
-library(caret)        # ML training & evaluation
-library(pROC)         # ROC curve
-library(hnp)          # Half-Normal Plot for diagnostics
-library(broom)        # Tidy model output
-library(ggplot2)      # Plotting
-library(gridExtra)    # Plot arrangement
-
+# === LOGISTIC REGRESSION MODEL ===
 # Convert relevant variables to factors
 cat_vars <- c("HighBP", "HighChol", "CholCheck", "Smoker", "Stroke",
               "HeartDiseaseorAttack", "PhysActivity", "Fruits", "Veggies",
               "HvyAlcoholConsump", "AnyHealthcare", "NoDocbcCost", "DiffWalk",
               "Sex", "Education", "Income", "Diabetes_binary")
 
-diabetes_data <- diabetes_data %>%
+data <- data %>%
   mutate(across(all_of(cat_vars), as.factor))
 
 # Data Exploration
-str(diabetes_data)
-summary(diabetes_data)
+str(data)
+summary(data)
 
 # Logistic Regression Model (Full)
 
@@ -194,3 +198,162 @@ auc(roc_curve)
 
 # HNP Plot (Model Diagnostics)
 hnp(final_model, main = "HNP Plot for Logistic Regression")
+
+# === XGBOOST MODEL ===
+
+# Verify class distribution (should be 50-50 as per dataset description)
+table(data$Diabetes_binary)
+prop.table(table(data$Diabetes_binary))
+
+# Visualize class distribution
+ggplot(data, aes(x = factor(Diabetes_binary))) +
+  geom_bar(fill = c("skyblue", "salmon")) +
+  labs(title = "Distribution of Diabetes Classes",
+       x = "Diabetes Status (0 = No, 1 = Yes)",
+       y = "Count") +
+  theme_minimal()
+
+
+# Relationships between key predictors and target variable
+ggplot(data, aes(x = factor(Diabetes_binary), y = BMI, fill = factor(Diabetes_binary))) +
+  geom_boxplot() +
+  labs(title = "BMI Distribution by Diabetes Status",
+       x = "Diabetes Status (0 = No, 1 = Yes)",
+       y = "BMI",
+       fill = "Diabetes Status") +
+  theme_minimal()
+
+
+# Correlation analysis for numerical variables
+numeric_vars <- sapply(data, is.numeric)
+correlation_matrix <- cor(diabetes_data[, numeric_vars])
+print("Correlation matrix of numerical variables:")
+print(correlation_matrix)
+
+
+# Visualize correlation matrix
+library(corrplot)
+corrplot(correlation_matrix, method = "color", 
+         type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+
+
+# === DATA PREPROCESSING ===
+
+# Convert all variables to appropriate types
+# For this dataset, most variables seem to be numeric but some may need to be treated as factors
+# Age, Education, and Income are likely categorical/ordinal
+data$Age <- as.factor(data$Age)
+data$Education <- as.factor(data$Education)
+data$Income <- as.factor(data$Income)
+data$Sex <- as.factor(data$Sex)
+
+# class distribution in training and testing sets
+cat("Training set class distribution:\n")
+prop.table(table(train_data$Diabetes_binary))
+cat("Testing set class distribution:\n")
+prop.table(table(test_data$Diabetes_binary))
+
+
+# Preparing data for XGBoost
+# XGBoost requires data in specific formats (matrix for features, vector for labels)
+# Converting categorical variables to one-hot encoding 
+# Prepare training data
+train_labels <- train_data$Diabetes_binary
+train_features <- train_data %>% select(-Diabetes_binary)
+
+
+# Convert categorical variables to dummy variables
+dummies <- dummyVars(" ~ .", data = train_features)
+train_features_dummy <- predict(dummies, newdata = train_features)
+train_matrix <- xgb.DMatrix(data = as.matrix(train_features_dummy), label = train_labels)
+
+
+# Prepare testing data
+test_labels <- test_data$Diabetes_binary
+test_features <- test_data %>% select(-Diabetes_binary)
+test_features_dummy <- predict(dummies, newdata = test_features)
+test_matrix <- xgb.DMatrix(data = as.matrix(test_features_dummy), label = test_labels)
+
+
+
+# === BUILD XGBOOST MODEL ===
+
+# Define hyperparameters for XGBoost
+xgb_params <- list(
+  objective = "binary:logistic",  # Binary classification with logistic regression
+  eval_metric = "logloss",        # Logarithmic loss
+  eta = 0.1,                      # Learning rate
+  max_depth = 6,                  # Maximum tree depth
+  min_child_weight = 1,           # Minimum sum of instance weight needed in a child
+  subsample = 0.8,                # Subsample ratio of the training instances
+  colsample_bytree = 0.8          # Subsample ratio of columns when constructing each tree
+)
+
+
+# Train the XGBoost model with early stopping
+xgb_model <- xgb.train(
+  params = xgb_params,
+  data = train_matrix,
+  nrounds = 1000,                # Maximum number of boosting rounds
+  watchlist = list(train = train_matrix, test = test_matrix),
+  early_stopping_rounds = 50,    # Stop if performance doesn't improve for 50 rounds
+  print_every_n = 50,            # Print evaluation metrics every 50 iterations
+  verbose = 1                    # Print training information
+)
+
+# === MODEL EVALUATION ===
+
+# Make predictions on test set
+xgb_pred_prob <- predict(xgb_model, as.matrix(test_features_dummy))
+xgb_pred_class <- ifelse(xgb_pred_prob > 0.5, 1, 0)
+
+# Create confusion matrix
+conf_matrix <- confusionMatrix(factor(xgb_pred_class), factor(test_labels))
+print("Confusion Matrix and Statistics:")
+print(conf_matrix)
+
+
+# Calculate other performance metrics
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- conf_matrix$byClass["F1"]
+specificity <- conf_matrix$byClass["Specificity"]
+
+# Print performance metrics
+cat("Performance Metrics:\n")
+cat("Accuracy:", accuracy, "\n")
+cat("Precision:", precision, "\n")
+cat("Recall (Sensitivity):", recall, "\n")
+cat("F1 Score:", f1_score, "\n")
+cat("Specificity:", specificity, "\n")
+
+# === FEATURE IMPORTANCE ANALYSIS ===
+
+# Get feature importance
+importance_matrix <- xgb.importance(feature_names = colnames(train_features_dummy), model = xgb_model)
+print("Feature Importance:")
+print(importance_matrix)
+
+# Plot feature importance
+xgb.plot.importance(importance_matrix, top_n = 20, main = "Top 20 Feature Importance")
+
+# === MODEL INTERPRETATION ===
+
+xgb.save(xgb_model, "diabetes_xgboost_model.model")
+conf_matrix$overall["Accuracy"]
+auc_value <- auc(roc_obj)
+print(paste("AUC:", auc_value))
+conf_matrix$byClass["Sensitivity"]
+conf_matrix$byClass["Specificity"]
+conf_matrix$byClass["Pos Pred Value"]
+conf_matrix$byClass["F1"]
+
+# Calculate ROC and AUC
+roc_obj <- roc(test_labels, xgb_pred_prob)
+auc_value <- auc(roc_obj)
+cat("Area Under the Curve (AUC):", auc_value, "\n")
+
+# Plot ROC curve
+plot(roc_obj, main = "ROC Curve for XGBoost Model", col = "blue")
