@@ -11,3 +11,16 @@ The following models were implemented and compared:
 - Random Forest
 - XGBoost
 - K-Nearest Neighbours (KNN)
+
+### Data Set
+https://archive.ics.uci.edu/dataset/891/cdc+diabetes+health+indicators
+
+### Group Members
+Luca Pavan  
+Tanaz Parbeen  
+Praveen Joseph Leen  
+Fionn Johnson  
+Archita Neerukonda  
+
+---
+
