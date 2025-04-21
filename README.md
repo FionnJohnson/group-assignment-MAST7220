@@ -365,12 +365,9 @@ library(class)
 library(dplyr)
 library(caret)
 library(janitor)
-library()
 
 # --- loading data --- #
-data <- read.csv('diabetes_binary_5050split_health_indicators_BRFSS2015.csv')
 data <-janitor::clean_names(data)
-
 
 # Converting the response variable into a factor variable
 data$diabetes_binary <- factor(data$diabetes_binary, labels = c("No", "Yes"))
@@ -402,9 +399,6 @@ conf_matrix <- table(Predicted = knn_pred, Actual = test_y)
 print(conf_matrix)
 accuracy <- mean(knn_pred == test_y)
 cat("Accuracy:", round(accuracy * 100, 2), "%\n")
-
-# 74.27%
-
 
 # K = 1
 knn_pred_k1 <- knn(train_x, test_x, cl = train_y, k = 1)
