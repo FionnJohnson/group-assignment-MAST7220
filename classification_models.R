@@ -375,7 +375,6 @@ predictors <- c("high_bp", "high_chol", "gen_hlth", "age", "phys_activity",
 # Standardize/scale the relevant features
 scaled_data <- scale(data[, predictors])
 
-
 # Create a training and testing split (70-30)
 set.seed(2)
 train_index <- sample(1:nrow(data), size = 0.7 * nrow(data))
@@ -385,17 +384,6 @@ test_x  <- scaled_data[-train_index, ]
 
 train_y <- data$diabetes_binary[train_index]
 test_y <- data$diabetes_binary[-train_index]
-
-
-# Running the K-NN model (with k = 20)
-knn_pred <- knn(train_x, test_x, cl = train_y, k = 30)
-
-
-# Evaluating the performance
-conf_matrix <- table(Predicted = knn_pred, Actual = test_y)
-print(conf_matrix)
-accuracy <- mean(knn_pred == test_y)
-cat("Accuracy:", round(accuracy * 100, 2), "%\n")
 
 # K = 1
 knn_pred_k1 <- knn(train_x, test_x, cl = train_y, k = 1)
@@ -451,3 +439,27 @@ plot(1:50, accuracy_k, type = "b", pch = 19, col = "blue",
      xlab = "Number of Neighbors (k)",
      ylab = "Accuracy",
      main = "Elbow Method for KNN – Accuracy vs. K")
+
+# Running the K-NN model (with k = 30)
+knn_pred <- knn(train_x, test_x, cl = train_y, k = 30)
+
+# Evaluating the performance
+conf_matrix <- table(Predicted = knn_pred, Actual = test_y)
+print(conf_matrix)
+accuracy <- mean(knn_pred == test_y)
+cat("Accuracy:", round(accuracy * 100, 2), "%\n")
+
+# Sensitivity, Specificity and Kappa
+TP <- conf_matrix["Yes", "Yes"]
+TN <- conf_matrix["No", "No"]
+FP <- conf_matrix["Yes", "No"]
+FN <- conf_matrix["No", "Yes"]
+
+sensitivity <- TP / (TP + FN)
+sensitivity
+specificity <- TN / (TN + FP)
+specificity
+
+cm <- confusionMatrix(knn_pred, test_y, positive = "Yes")
+kappa_value <- cm$overall["Kappa"]
+cat("Kappa:", round(kappa_value, 3), "\n")
