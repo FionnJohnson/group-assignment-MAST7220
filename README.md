@@ -145,3 +145,52 @@ ggplot(results_df, aes(x = Trees, y = Accuracy)) +
   labs(title = "Random Forest: Number of Trees vs Accuracy",
        x = "Number of Trees (ntree)",
        y = "Accuracy")
+
+# Load required packages
+library(tidyverse)    # Data manipulation
+library(caret)        # ML training & evaluation
+library(pROC)         # ROC curve
+library(hnp)          # Half-Normal Plot for diagnostics
+library(broom)        # Tidy model output
+library(ggplot2)      # Plotting
+library(gridExtra)    # Plot arrangement
+
+# Convert relevant variables to factors
+cat_vars <- c("HighBP", "HighChol", "CholCheck", "Smoker", "Stroke",
+              "HeartDiseaseorAttack", "PhysActivity", "Fruits", "Veggies",
+              "HvyAlcoholConsump", "AnyHealthcare", "NoDocbcCost", "DiffWalk",
+              "Sex", "Education", "Income", "Diabetes_binary")
+
+diabetes_data <- diabetes_data %>%
+  mutate(across(all_of(cat_vars), as.factor))
+
+# Data Exploration
+str(diabetes_data)
+summary(diabetes_data)
+
+# Logistic Regression Model (Full)
+
+full_model <- glm(Diabetes_binary ~ ., data = train_data, family = "binomial")
+
+summary(full_model)
+
+# Stepwise Model Selection 
+final_model <- step(full_model, direction = "both")
+summary(final_model)
+exp(coef(final_model))  # Odds ratios
+
+#  Predictions on Test Data (Logistic Regression)
+prob_pred <- predict(final_model, newdata = test_data, type = "response")
+class_pred <- ifelse(prob_pred > 0.5, "1", "0") %>% as.factor()
+
+#  Model Evaluation
+conf_matrix <- confusionMatrix(class_pred, test_data$Diabetes_binary, positive = "1")
+print(conf_matrix)
+
+# ROC Curve & AUC
+roc_curve <- roc(test_data$Diabetes_binary, prob_pred)
+plot(roc_curve, main = "ROC Curve for Logistic Regression")
+auc(roc_curve)
+
+# HNP Plot (Model Diagnostics)
+hnp(final_model, main = "HNP Plot for Logistic Regression")
